@@ -1,0 +1,9 @@
+D:\Programing\Projects\ExcelReader\ExcelReader\bin\Debug\ExcelReader.exe.config
+D:\Programing\Projects\ExcelReader\ExcelReader\obj\Debug\ExcelReader.csprojResolveAssemblyReference.cache
+D:\Programing\Projects\ExcelReader\ExcelReader\obj\Debug\ExcelReader.Properties.Resources.resources
+D:\Programing\Projects\ExcelReader\ExcelReader\obj\Debug\ExcelReader.csproj.GenerateResource.Cache
+D:\Programing\Projects\ExcelReader\ExcelReader\bin\Debug\ExcelReader.exe
+D:\Programing\Projects\ExcelReader\ExcelReader\bin\Debug\ExcelReader.pdb
+D:\Programing\Projects\ExcelReader\ExcelReader\obj\Debug\ExcelReader.exe
+D:\Programing\Projects\ExcelReader\ExcelReader\obj\Debug\ExcelReader.pdb
+D:\Programing\Projects\ExcelReader\ExcelReader\obj\Debug\ExcelReader.Form1.resources
