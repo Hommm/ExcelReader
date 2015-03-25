@@ -59,7 +59,7 @@ namespace ExcelReader
                     + ";Extended Properties='Excel 8.0;HDR=False;IMEX=1'";
                 OleDbConnection OleConn = new OleDbConnection(strConn);
                 OleConn.Open();
-                String sql = "SELECT * FROM  [党员基础信息$" + scope + "]";//可是更改Sheet名称，比如sheet2，等等 
+                String sql = "SELECT * FROM  [党组织信息$" + scope + "]";//可是更改Sheet名称，比如sheet2，等等 
 
                 OleDbDataAdapter OleDaExcel = new OleDbDataAdapter(sql, OleConn);
                 
