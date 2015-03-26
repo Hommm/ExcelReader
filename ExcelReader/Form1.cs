@@ -24,92 +24,96 @@ namespace ExcelReader
             InitializeComponent();
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void button1_Click_1(object sender, EventArgs e)
         {
-            var excelFolderpath = @"D:\嘉善县教育局";
-            //var excelSavePath = @"D:\二级.xls";
-
-            var lev1Name = excelFolderpath.Split('\\').LastOrDefault();
-            var excelSavePath = excelFolderpath + "\\党组织\\" + lev1Name + "二级.xls";
-
-            var lev2NameArr = GetFileNames(excelFolderpath);
-            var lev2Type = "机关";
-            var lev2Belongs = lev1Name;
-
-            var groupSet = new HashSet<Group>();
-            foreach (var lev2Name in lev2NameArr)
-            {
-                var group = new Group(lev2Name,lev2Type,lev2Belongs);
-                groupSet.Add(group);
-            }
-
-            SaveGroupExcel(groupSet,excelSavePath);
+            FolderBrowserDialog path = new FolderBrowserDialog();
+            path.ShowDialog();
+            this.txtPath.Text = path.SelectedPath;
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
             //var excelFolderpath = @"D:\嘉善县教育局";
-            var excelFolderpath = @"D:\嘉善县大云镇";
+            //var excelFolderpath = @"D:\嘉善县大云镇";
+            var excelFolderpath = this.txtPath.Text;
 
             var lev1Name = excelFolderpath.Split('\\').LastOrDefault();
-            var excelSavePath = excelFolderpath + "\\党组织\\" + lev1Name + "二级.xls";
-
-            var excelSavePath2 = excelFolderpath + "\\党组织\\" + lev1Name + "三级.xls";
-
+            var excelSavePath = excelFolderpath + "\\党组织\\" ;
+            
+            if (!Directory.Exists(excelSavePath))
+            {
+                Directory.CreateDirectory(excelSavePath);
+            }
+            
             var pathList = GetFiles(excelFolderpath);
 
             var tabeList = new List<Data.DataTable>();
             var groupSet = new HashSet<Group>();
             var groupSet2 = new HashSet<Group>();
 
+
             foreach (var path in pathList)
             {
-                DataSet data = LoadDataFromExcel(path, "J", "K");
+                DataSet data = LoadDataFromExcel(path, "", "");
                 if (data == null)
                 {
                     Console.WriteLine("data is null");
                     continue;
                 }
                 tabeList.Add(data.Tables[0]);
-
-                var dataTable = data.Tables[0];
-                foreach (DataRow row in dataTable.Rows)
-                {
-                    var name = row[0].ToString();
-                    var type = row[1].ToString();
-                    var belongs = lev1Name;
-
-                    if (name.Equals("所属党支部"))
-                        continue;
-                    if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(type))
-                    {
-                        Console.WriteLine("名称: " + name + " 类型:" + type);
-                        continue;
-                    }
-
-                    if (!(name.Contains("一支部") || name.Contains("二支部") || name.Contains("三支部") || name.Contains("四支部")
-                            || name.Contains("五支部") || name.Contains("六支部") || name.Contains("七支部")
-                            || name.Contains("八支部") || name.Contains("九支部") || name.Contains("十支部")
-                            || name.Contains("十一支部")))
-                    {
-                        groupSet.Add(new Group(name, type, belongs));
-                    }
-                    else
-                    {
-                        var index = name.IndexOf("支部") - 1;
-                        var filter = name.Substring(index);
-
-                        var parentName = name.Replace(filter, "党总支");
-
-                        groupSet.Add(new Group(parentName, type, belongs));
-                        groupSet2.Add(new Group(name, type, parentName));
-                    }
-                }
-
             }
 
-            SaveGroupExcel(groupSet, excelSavePath);
-            SaveGroupExcel(groupSet2, excelSavePath2);
+            SaveGroupExcel(tabeList,lev1Name, excelSavePath + lev1Name + "二级.xls");
+
+            MessageBox.Show("整理完成", "提示信息",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            var excelFolderpath = this.txtPath.Text;
+            var fileName = excelFolderpath.Split('\\').LastOrDefault();
+            var excelSavePath = excelFolderpath + "\\合并\\";
+
+            if (!Directory.Exists(excelSavePath))
+            {
+                Directory.CreateDirectory(excelSavePath);
+            }
+
+            var pathList = GetFiles(excelFolderpath);
+
+            Data.DataTable tableMerge = null;
+            foreach (var path in pathList)
+            {
+                DataSet data = LoadDataFromExcel(path, "", "");
+                if (data == null)
+                {
+                    Console.WriteLine("data is null");
+                    continue;
+                }
+
+                if (tableMerge == null)
+                {
+                    tableMerge = data.Tables[0].Clone();
+                }
+                else
+                {
+                    object[] objArray = new object[tableMerge.Columns.Count];
+                    for (int i = 0; i < data.Tables.Count; i++)
+                    {
+                        for (int j = 0; j < data.Tables[i].Rows.Count; j++)
+                        {
+                            data.Tables[i].Rows[j].ItemArray.CopyTo(objArray, 0); //将表的一行的值存放数组中。
+                            tableMerge.Rows.Add(objArray); //将数组的值添加到新表中。
+                        }
+                    }
+                }
+            }
+
+            SaveDataTableToExcel(tableMerge, excelSavePath + fileName + "党员信息合并.xls");
+
+            MessageBox.Show("合并完成", "提示信息",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         //加载Excel 
@@ -281,7 +285,5 @@ namespace ExcelReader
                 return null;
             }
         }
-
-        
     }
 }
