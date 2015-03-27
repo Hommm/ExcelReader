@@ -51,19 +51,54 @@ namespace ExcelReader
             var groupSet = new HashSet<Group>();
             var groupSet2 = new HashSet<Group>();
 
-
+            // 遍历所有的Excel文件
             foreach (var path in pathList)
             {
-                DataSet data = LoadDataFromExcel(path, "", "");
+                DataSet data = LoadDataFromExcel(path, "J", "K");
                 if (data == null)
                 {
                     Console.WriteLine("data is null");
                     continue;
                 }
-                tabeList.Add(data.Tables[0]);
+                //tabeList.Add(data.Tables[0]);
+                var dataTable = data.Tables[0];
+                foreach (DataRow row in dataTable.Rows)
+                {
+                    var name = row[0].ToString().Replace("浙江省", "").Replace("嘉善县", "");
+                    var type = row[1].ToString();
+                    var belongs = lev1Name.Replace("浙江省", "").Replace("嘉善县", "");
+
+                    if (name.Equals("所属党支部"))
+                        continue;
+                    if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(type))
+                    {
+                        Console.WriteLine("名称: " + name + " 类型:" + type);
+                        continue;
+                    }
+
+                    if (!(name.Contains("一支部") || name.Contains("二支部") || name.Contains("三支部") || name.Contains("四支部")
+                            || name.Contains("五支部") || name.Contains("六支部") || name.Contains("七支部")
+                            || name.Contains("八支部") || name.Contains("九支部") || name.Contains("十支部")
+                            || name.Contains("十一支部")))
+                    {
+                        groupSet.Add(new Group(name, type, belongs));
+                    }
+                    else
+                    {
+                        var index = name.IndexOf("支部") - 1;
+                        var filter = name.Substring(index);
+
+                        var parentName = name.Replace(filter, "党总支");
+
+                        groupSet.Add(new Group(parentName, type, belongs));
+                        groupSet2.Add(new Group(name, type, parentName));
+                    }
+                }
             }
 
-            SaveGroupExcel(tabeList,lev1Name, excelSavePath + lev1Name + "二级.xls");
+            //SaveGroupExcel(tabeList,lev1Name, excelSavePath + lev1Name + "二级.xls");
+            SaveGroupExcel(groupSet, excelSavePath + "二级.xls");
+            SaveGroupExcel(groupSet2, excelSavePath + "三级.xls");
 
             MessageBox.Show("整理完成", "提示信息",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -99,12 +134,19 @@ namespace ExcelReader
                 else
                 {
                     object[] objArray = new object[tableMerge.Columns.Count];
+                    int count = 1;
                     for (int i = 0; i < data.Tables.Count; i++)
                     {
                         for (int j = 0; j < data.Tables[i].Rows.Count; j++)
                         {
-                            data.Tables[i].Rows[j].ItemArray.CopyTo(objArray, 0); //将表的一行的值存放数组中。
-                            tableMerge.Rows.Add(objArray); //将数组的值添加到新表中。
+                            var rowItem = data.Tables[i].Rows[j].ItemArray;
+                            if (string.IsNullOrEmpty(rowItem.FirstOrDefault().ToString()))
+                                continue;
+
+                            rowItem[9] = rowItem[9].ToString().Replace("浙江省", "").Replace("嘉善县", "");
+
+                            rowItem.CopyTo(objArray, 0);   //将表的一行的值存放数组中。
+                            tableMerge.Rows.Add(objArray);                          //将数组的值添加到新表中。
                         }
                     }
                 }
@@ -135,7 +177,7 @@ namespace ExcelReader
                 OleDbDataAdapter OleDaExcel = new OleDbDataAdapter(sql, OleConn);
                 
                 DataSet OleDsExcle = new DataSet();
-                OleDaExcel.Fill(OleDsExcle, "党组织信息");
+                OleDaExcel.Fill(OleDsExcle);
                 OleConn.Close();
                 return OleDsExcle;
             }
@@ -232,9 +274,9 @@ namespace ExcelReader
             {
                 foreach (DataRow row in dataTable.Rows)
                 {
-                    var name = row[0].ToString();
+                    var name = row[0].ToString().Replace("浙江省","").Replace("嘉善县","");
                     var type = row[1].ToString();
-                    var belongs = parentGroup;
+                    var belongs = parentGroup.Replace("浙江省", "").Replace("嘉善县", "");
 
                     if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(type))
                     {
