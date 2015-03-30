@@ -13,43 +13,87 @@ using System.Windows.Forms;
 using Ex = Microsoft.Office.Interop.Excel;
 using Data = System.Data;
 using ExcelReader.Model;
+using System.Reflection;
 
 namespace ExcelReader.Tools
 {
-    public static class ExcelTools
+    // 定义事件的参数类
+    public class ValueEventArgs : EventArgs
     {
+        public int Value { set; get; }
+    }
+
+    // 定义事件使用的委托
+    public delegate void ValueChangedEventHandler(object sender, ValueEventArgs e);
+
+    public class ExcelTools
+    {
+        // 定义一个事件来提示界面工作的进度
+        public event ValueChangedEventHandler ValueChanged;
+
+        // 触发事件的方法
+        protected void OnValueChanged(ValueEventArgs e)
+        {
+            if (this.ValueChanged != null)
+            {
+                this.ValueChanged(this, e);
+            }
+        }
+
         //加载Excel 
-        public static DataSet LoadDataFromExcel(string filePath, string startNode, string endNode,string saveSheetName)
+        public DataSet LoadDataFromExcel(string filePath, string sheetName, string beginColumn, string endColumn)
         {
             try
             {
                 var scope = "";
-                if (!string.IsNullOrEmpty(startNode) && !string.IsNullOrEmpty(endNode))
-                    scope = startNode + ":" + endNode;
+                if (!string.IsNullOrEmpty(beginColumn) && !string.IsNullOrEmpty(endColumn))
+                    scope = beginColumn + ":" + endColumn;
 
                 string strConn;
                 strConn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + filePath
                     + ";Extended Properties='Excel 8.0;HDR=False;IMEX=1'";
                 OleDbConnection OleConn = new OleDbConnection(strConn);
                 OleConn.Open();
-                String sql = "SELECT * FROM  [党员基础信息$" + scope + "]";//可是更改Sheet名称，比如sheet2，等等 
+                String sql = "SELECT * FROM  [" + sheetName + "$" + scope + "]";    //可是更改Sheet名称，比如sheet2，等等 
 
                 OleDbDataAdapter OleDaExcel = new OleDbDataAdapter(sql, OleConn);
 
                 DataSet OleDsExcle = new DataSet();
-                OleDaExcel.Fill(OleDsExcle, saveSheetName);
+                OleDaExcel.Fill(OleDsExcle);
                 OleConn.Close();
-                
                 return OleDsExcle;
             }
-            catch (Exception err)
+            catch (Exception ex)
             {
-                throw new Exception("数据绑定Excel失败!失败原因：" + err.Message);
+                throw ex;
             }
         }
 
-        public static bool SaveDataTableToExcel(System.Data.DataTable excelTable, string filePath)
+        public DataSet LoadDataFromExcel(List<string> filePathList, string sheetName, string beginColumn, string endColumn)
         {
+            int count = filePathList.Count;
+            int i = 0;
+            DataSet MergeDataSet = new DataSet();
+            foreach (var filePath in filePathList)
+            {
+                DataSet dataSet = LoadDataFromExcel(filePath,sheetName,beginColumn,endColumn);
+                MergeDataSet.Merge(dataSet);
+                // 计算进度
+                i++;
+                int processValue = (int)((1 * 1.0) / count * 100);
+                double weight = 0.5;
+                // 触发事件
+                ValueEventArgs e = new ValueEventArgs() { Value = (int)(processValue * weight) };
+                this.OnValueChanged(e);
+            }
+
+            return MergeDataSet;
+        }
+
+        public void SaveDataTableToExcel(System.Data.DataTable excelTable,string sheetName, string filePath)
+        {
+            var fileName = filePath.Split('\\').LastOrDefault().Split('.').FirstOrDefault();
+
             Microsoft.Office.Interop.Excel.Application app =
                 new Microsoft.Office.Interop.Excel.ApplicationClass();
             try
@@ -57,18 +101,26 @@ namespace ExcelReader.Tools
                 app.Visible = false;
                 Workbook wBook = app.Workbooks.Add(true);
                 Worksheet wSheet = wBook.Worksheets[1] as Worksheet;
+
+                wSheet.Name = sheetName;
                 if (excelTable.Rows.Count > 0)
                 {
-                    int row = 0;
-                    row = excelTable.Rows.Count;
-                    int col = excelTable.Columns.Count;
-                    for (int i = 0; i < row; i++)
+                    int rowCount = excelTable.Rows.Count;
+                    int colCount = excelTable.Columns.Count;
+                    for (int i = 0; i < rowCount; i++)
                     {
-                        for (int j = 0; j < col; j++)
+                        for (int j = 0; j < colCount; j++)
                         {
                             string str = excelTable.Rows[i][j].ToString();
                             wSheet.Cells[i + 2, j + 1] = str;
                         }
+
+                        // 计算进度
+                        int processValue = (int)((1 * 1.0) / rowCount * 100);
+                        double weight = 0.5;
+                        // 触发事件
+                        ValueEventArgs e = new ValueEventArgs() { Value = (int)(processValue * weight) };
+                        this.OnValueChanged(e);
                     }
                 }
 
@@ -81,18 +133,18 @@ namespace ExcelReader.Tools
                 app.DisplayAlerts = false;
                 app.AlertBeforeOverwriting = false;
                 //保存工作簿 
-                wBook.Save();
+                wBook.SaveAs(fileName, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                        Microsoft.Office.Interop.Excel.XlSaveAsAccessMode.xlNoChange, Missing.Value, Missing.Value,
+                        Missing.Value, Missing.Value, Missing.Value);
                 //保存excel文件 
                 app.Save(filePath);
                 app.SaveWorkspace(filePath);
                 app.Quit();
                 app = null;
-                return true;
             }
-            catch (Exception err)
+            catch (Exception ex)
             {
-                Console.WriteLine("导出Excel出错！错误原因：" + err.Message);
-                return false;
+                throw ex;
             }
             finally
             {
